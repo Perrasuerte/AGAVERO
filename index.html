@@ -115,12 +115,16 @@ var PAL={
 var C=PAL.jima;
 
 /* ---------- audio ---------- */
-var VERSION='v16';
+var VERSION='v17';
 var ac=null,muted=false,notasSonadas=0;
 var master=null,desbloqueado=0,mudoHTML=null,despertando=0;
 function ensureAudio(){
+  if(ac&&ac.state==='closed'){ac=null;master=null;poolT=[];poolN=[];poolReady=0;noiseSrc=null;}
   if(!ac){try{
     ac=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'playback'});
+    try{ac.addEventListener('statechange',function(){
+      if(ac&&ac.state==='suspended'){try{ac.resume();}catch(e){}}
+    });}catch(e){}
     master=ac.createGain();master.gain.value=3.2;
     try{
       var lim=ac.createDynamicsCompressor();
@@ -391,11 +395,11 @@ function musStart(){
 }
 function musTick(){
   if(!ac)return;
-  if(ac.state==='suspended'){ if(despertando<=0){despertando=1.2;try{ac.resume();}catch(e){}} return; }
-  /* si el navegador estrangulo el temporizador, resincronizar en vez de agendar en el pasado */
+  if(ac.state!=='running'){ if(despertando<=0){despertando=1;try{ac.resume();}catch(e){}} return; }
+  /* si el hilo principal se atraso, resincronizar en vez de agendar en el pasado */
   if(mus.t<ac.currentTime){mus.t=ac.currentTime+.05;}
   var pasos=0;
-  while(mus.t<ac.currentTime+.3&&pasos<16){
+  while(mus.t<ac.currentTime+.9&&pasos<40){
     pasos++;
     var T=TUNE[stage];
     if(T)lastTune=stage;else T=TUNE[lastTune];
@@ -2061,7 +2065,7 @@ function frame(now){
   run+=PLAYSTAGE()?0:dt;
   shake=Math.max(0,shake-dt*20);msgT-=dt;lockT-=dt;
   if(despertando>0)despertando-=dt;
-  if(ac&&ac.state==='suspended'&&despertando<=0){despertando=1.5;try{ac.resume();}catch(e){}}
+  if(ac&&ac.state!=='running'&&despertando<=0){despertando=1;try{ac.resume();}catch(e){}}
   if(stage==='creditos')credY+=dt*13;
   if(stage==='salud')saludT+=dt;
   if(stage==='jima')updJima(dt);
