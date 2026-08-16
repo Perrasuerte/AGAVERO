@@ -115,7 +115,7 @@ var PAL={
 var C=PAL.jima;
 
 /* ---------- audio ---------- */
-var VERSION='v18';
+var VERSION='v19';
 var ac=null,muted=false,notasSonadas=0;
 var master=null,desbloqueado=0,mudoHTML=null,despertando=0;
 function ensureAudio(){
@@ -535,7 +535,7 @@ function saveAll(){try{if(window.storage&&window.storage.set){
   if(maestro)window.storage.set('agavero:maestro',maestro);
   window.storage.set('agavero:avatar',String(avatar));}}catch(e){}}
 
-function say(t,a){msg=t;msgT=1.5;msgA=a?1:0;}
+function say(t,a,d){msg=t;msgT=d||1.5;msgA=a?1:0;}
 function seAcabo(m){motivo=m;stage='perdiste';SFX.dry();}
 function fxTxt(x,y,t,c){parts.push({x:x,y:y,vx:0,vy:-16,l:1.1,c:c,s:1,txt:t});}
 function fx(x,y,n,c,sp){for(var i=0;i<n;i++){var a=Math.random()*Math.PI*2,s=(.4+Math.random())*(sp||24);
@@ -626,9 +626,10 @@ var P_TAB=[
   'AQUI SE DECIDE EL LOTE.','',
   'SEPARA BIEN LAS TRES FRACCIONES','Y LUEGO MEZCLA HASTA CAER','ENTRE 40 Y 48 GRADOS DE','ALCOHOL.','',
   'MAS BOTELLAS SUMAN, PERO LAS','PUNTAS Y LAS COLAS BAJAN LA','PUREZA, Y CADA BOTELLA VACIA','TE RESTA.','',
-  'CANTIDAD Y CALIDAD, LAS DOS.']},
+  'CANTIDAD Y CALIDAD, LAS DOS.','',
+  'PRIMERO CORTAS EN LA VALVULA,','LUEGO SIRVES Y SELLAS EN OTRO','LUGAR: SON DOS PASOS, DOS','LUGARES.']},
  {art:2,l:['EN EL ALAMBIQUE EL MAESTRO','SEPARA PUNTAS, CORAZON Y','COLAS. EL CORAZON MANDA,','PERO EL MAESTRO DECIDE CUANTO','DE CADA UNO LLEVA EL LOTE.']},
- {art:-1,t:'LA TABERNA',l:['1) LOS CORTES. EL ALCOHOLIMETRO','MARCA LOS GRADOS DE ALCOHOL Y','BAJA RAPIDO:','ARRIBA DE 55 SON PUNTAS,','DE 55 A 40 EL CORAZON,','DE 40 PARA ABAJO LAS COLAS.','TOQUE EN LA VALVULA: CAMBIA','DE TAMBO. TU CALCULAS CUANDO.','','2) LA MEZCLA. MANTEN EN UN','TAMBO PARA CARGAR LA JARRA Y','EN LA BANDA PARA SERVIR.','TIENES 52 SEGUNDOS.','','UN POCO DE PUNTAS PERFUMA Y UN','POCO DE COLAS DA CUERPO. EL','EXCESO DE CUALQUIERA ARRUINA.','','HAY QUIEN DESTILA DOS VECES.','EN LA SIERRA SE USA ALAMBIQUE','DE COBRE Y TAMBIEN FILIPINO.','','EL LOTE DEBE SALIR ENTRE 40 Y','48 GRADOS DE ALCOHOL: LAS','PUNTAS LO SUBEN Y LAS COLAS','LO BAJAN. LA ZONA CLARA DEL','MEDIDOR ES EL PUNTO JUSTO.']}];
+ {art:-1,t:'LA TABERNA',l:['1) LOS CORTES.','EL ALCOHOLIMETRO MARCA LOS','GRADOS Y BAJA RAPIDO: ARRIBA','DE 55 SON PUNTAS, DE 55 A 40','EL CORAZON, DE 40 PARA ABAJO','LAS COLAS.','','TOQUE EN LA VALVULA CAMBIA DE','TAMBO. EN CUANTO LLEGUEN LAS','COLAS LA VALVULA SE QUEDA','FIJA SOLA: YA NO HAY QUE','TOCARLA MAS.','','2) LA MEZCLA.','MANTEN EN UN TAMBO PARA CARGAR','LA JARRA Y EN LA BANDA PARA','SERVIR. TIENES 52 SEGUNDOS.','','UN POCO DE PUNTAS PERFUMA Y UN','POCO DE COLAS DA CUERPO. EL','EXCESO DE CUALQUIERA ARRUINA.','','CUANDO TERMINES DE SERVIR, VE','AL SELLO (NO A LA VALVULA) Y','TOCA PARA CERRAR EL LOTE.','','EL LOTE DEBE SALIR ENTRE 40 Y','48 GRADOS: LAS PUNTAS LO SUBEN','Y LAS COLAS LO BAJAN. LA ZONA','CLARA DEL MEDIDOR ES EL PUNTO','JUSTO.']}];
 
 /* ---------- ETAPA 1 ---------- */
 function startJima(){
@@ -1033,7 +1034,7 @@ function drawFermento(){
   hudBar('TINAS '+(tinas.length-ab)+'/'+tinas.length,1-ab/tinas.length,'CONTAM '+contam);
 }
 /* ---------- ETAPA 4: LA TABERNA ---------- */
-var VALV={x:60,y:64},BELT={x:112,y:96};
+var VALV={x:60,y:64},BELT={x:112,y:96},CIERRE={x:38,y:126};
 var DRUM=[{x:30,y:92,n:'PUNTAS'},{x:58,y:92,n:'CORAZON'},{x:86,y:92,n:'COLAS'}];
 function startTaberna(){
   C=PAL.taberna;
@@ -1068,8 +1069,9 @@ function estacion(){
   for(i=0;i<3;i++){var d=hyp(player.x-DRUM[i].x,player.y-(DRUM[i].y+14));
     if(d<17&&d<bd){bd=d;best='t'+i;}}
   var db=hyp(player.x-BELT.x,player.y-BELT.y);
-  if(db<22&&db<bd)return 'banda';
-  if(hyp(player.x-VALV.x,player.y-VALV.y)<18&&!best)return 'cerrar';
+  if(db<22&&db<bd){bd=db;best='banda';}
+  var dc=hyp(player.x-CIERRE.x,player.y-CIERRE.y);
+  if(dc<20&&dc<bd){bd=dc;best='cerrar';}
   return best;
 }
 function botellaActiva(){
@@ -1084,17 +1086,19 @@ function updTaberna(dt){
   if(!still.mezcla){
     var flow=.95*dt;
     if(still.prod+flow>=still.total){flow=Math.max(0,still.total-still.prod);
-      still.dry=1;still.mezcla=1;still.mezT=52;SFX.dry();say('AHORA LA MEZCLA',1);}
+      still.dry=1;still.mezcla=1;still.mezT=52;still.cierra=6;SFX.dry();say('LLENA TU JARRA Y SIRVE',1,2.4);}
     still.prod+=flow;
     var f=fase();
     if(f!==still.ph){still.ph=f;}
     still.d[still.sel].c[f]+=flow;
-    if(edge&&st==='valvula'){still.sel=(still.sel+1)%3;SFX.valve();
-      say('TAMBO: '+DRUM[still.sel].n,1);}
+    if(edge&&st==='valvula'){
+      if(still.sel===2){say('LAS COLAS YA NO NECESITAN VALVULA',1);}
+      else{still.sel=(still.sel+1)%3;SFX.valve();say('TAMBO: '+DRUM[still.sel].n,1);}
+    }
     edge=0;return;
   }
 
-  still.mezT-=dt;
+  still.mezT-=dt;still.cierra=Math.max(0,still.cierra-dt);
   if(!still.aviso&&still.mezT<10){still.aviso=1;say('YA CIERRA LA TABERNA',1);SFX.pass();}
   if(still.mezT<=0){finish();return;}
   var prog=Math.min(1,run/90),bs=10+prog*6;
@@ -1122,7 +1126,7 @@ function updTaberna(dt){
       if(ab.fill>1.0)still.merma+=pp;else{ab.c[c2]+=pp;still.srv[c2]+=pp;}}
     ab.fill+=q2;
     if(Math.floor(run*14)%2===0)SFX.pour();}
-  if(edge&&st==='cerrar')finish();
+  if(edge&&st==='cerrar'){ if(still.cierra<=0)finish(); else say('AUN NO, MAESTRO',1); }
   if(disp<.9&&still.bottles.length===0)finish();
   edge=0;
 }
@@ -1439,6 +1443,19 @@ function drawTaberna(){
     var l2=Math.round(clamp(b.fill,0,1)*9);
     if(l2>0){ctx.fillStyle=b.fill>1.0?'#ffffff':'#f2e3a6';ctx.fillRect(bx+2,by+4-l2,5,l2);}
     ctx.fillStyle='#b9c0b2';ctx.fillRect(bx,by-6,9,1);});
+  if(still.mezcla){
+    var listo=still.cierra<=0;
+    ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y+10,14,3,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=C.w2;ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y,14,10,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=listo?C.hot:'#6b5c46';
+    ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y,10,6,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=listo?'#2b1d16':'#3b332c';ctx.font='bold 6px monospace';
+    ctx.textAlign='center';ctx.textBaseline='top';
+    ctx.fillText(listo?'SELLAR':Math.ceil(still.cierra)+'S',CIERRE.x,CIERRE.y-3);
+    ctx.textAlign='left';
+    if(listo&&Math.floor(run*3)%2===0){ctx.strokeStyle=C.hot;ctx.lineWidth=1;
+      ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y,14,10,0,0,Math.PI*2);ctx.stroke();}
+  }
   drawMaestro(player.x,player.y,player.f);
   var jv=jarV();
   if(jv>0){var h=Math.round(jv/3*7);
@@ -1448,7 +1465,7 @@ function drawTaberna(){
   var st=estacion();
   var lab=st==='valvula'?'TOQUE: CAMBIAR DE TAMBO':
     (st==='banda'?'MANTEN: SERVIR LA BOTELLA':
-    (st==='cerrar'?(still.cierra>0?('CERRAR EN '+Math.ceil(still.cierra)+'S'):'TOQUE: CERRAR EL LOTE'):
+    (st==='cerrar'?(still.cierra>0?('SELLA EN '+Math.ceil(still.cierra)+'S'):'TOQUE: SELLAR EL LOTE'):
     (st?'MANTEN: LLENAR LA JARRA':
     (still.mezcla?'VE A UN TAMBO O A LA BANDA':'PARATE EN LA VALVULA'))));
   ctx.fillStyle=C.ink;ctx.fillRect(4,134,98,15);
