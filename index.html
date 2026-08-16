@@ -115,12 +115,12 @@ var PAL={
 var C=PAL.jima;
 
 /* ---------- audio ---------- */
-var VERSION='v14';
-var ac=null,muted=false,notasSonadas=0,vivos=0;
+var VERSION='v16';
+var ac=null,muted=false,notasSonadas=0;
 var master=null,desbloqueado=0,mudoHTML=null,despertando=0;
 function ensureAudio(){
   if(!ac){try{
-    ac=new (window.AudioContext||window.webkitAudioContext)();
+    ac=new (window.AudioContext||window.webkitAudioContext)({latencyHint:'playback'});
     master=ac.createGain();master.gain.value=3.2;
     try{
       var lim=ac.createDynamicsCompressor();
@@ -131,6 +131,7 @@ function ensureAudio(){
       lim.release.setValueAtTime(.18,ac.currentTime);
       master.connect(lim);lim.connect(ac.destination);
     }catch(e){master.connect(ac.destination);}
+    initPools();
   }catch(e){}}
   if(ac&&ac.state==='suspended'){try{ac.resume();}catch(e){}}
   return ac;
@@ -161,57 +162,93 @@ try{window.addEventListener('focus',function(){if(ac){try{ac.resume();}catch(e){
 try{['pointerdown','touchend','click','keydown'].forEach(function(ev){
   document.addEventListener(ev,despierta,{passive:true});});}catch(e){
   try{document.addEventListener('touchend',despierta);document.addEventListener('click',despierta);}catch(e2){}}
-function note(f,t,dur,type,vol){
-  if(!ac||muted||vivos>44)return;
-  try{var o=ac.createOscillator(),g=ac.createGain();
-    o.type=type||'square';o.frequency.setValueAtTime(f,t);
-    g.gain.setValueAtTime(0.0001,t);g.gain.linearRampToValueAtTime(vol,t+.01);
-    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-    o.connect(g);g.connect(salida());
-    vivos++;o.onended=function(){vivos--;try{o.disconnect();g.disconnect();}catch(e){}};
-    o.start(t);o.stop(t+dur+.02);notasSonadas++;}catch(e){}
+var poolT=[],poolN=[],poolReady=0,noiseSrc=null;
+var POOL_T=14,POOL_N=6;
+function initPools(){
+  if(poolReady||!ac)return;
+  try{
+    for(var i=0;i<POOL_T;i++){
+      var o=ac.createOscillator(),g=ac.createGain();
+      o.type='square';o.frequency.value=440;g.gain.value=0.0001;
+      o.connect(g);g.connect(salida());
+      if(o.start)o.start();
+      poolT.push({osc:o,gain:g,busy:0});
+    }
+    var n=(ac.sampleRate*.3)|0,buf=ac.createBuffer(1,n,ac.sampleRate);
+    var d=buf.getChannelData(0);for(var i2=0;i2<n;i2++)d[i2]=Math.random()*2-1;
+    noiseSrc=ac.createBufferSource();noiseSrc.buffer=buf;noiseSrc.loop=true;
+    for(var j=0;j<POOL_N;j++){
+      var g2=ac.createGain(),fl=ac.createBiquadFilter();
+      fl.type='lowpass';fl.frequency.value=1000;g2.gain.value=0.0001;
+      noiseSrc.connect(fl);fl.connect(g2);g2.connect(salida());
+      poolN.push({gain:g2,filter:fl,busy:0});
+    }
+    if(noiseSrc.start)noiseSrc.start();
+    poolReady=1;
+  }catch(e){}
 }
-var ruidoBuf=null;
+function tomaVoz(pool,t){
+  var libre=null;
+  for(var i=0;i<pool.length;i++){var v=pool[i];
+    if(v.busy<=t&&(!libre||v.busy<libre.busy))libre=v;}
+  if(libre)return libre;
+  var viejo=pool[0];
+  for(var j=1;j<pool.length;j++)if(pool[j].busy<viejo.busy)viejo=pool[j];
+  return viejo;
+}
+function note(f,t,dur,type,vol){
+  if(!ac||muted)return;
+  if(!poolReady)initPools();
+  if(!poolT.length)return;
+  try{
+    var v=tomaVoz(poolT,t);
+    v.osc.type=type||'square';
+    v.osc.frequency.setValueAtTime(f,t);
+    v.gain.gain.cancelScheduledValues(t);
+    v.gain.gain.setValueAtTime(0.0001,t);
+    v.gain.gain.linearRampToValueAtTime(vol,t+.01);
+    v.gain.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    v.busy=t+dur;
+    notasSonadas++;
+  }catch(e){}
+}
 function ruido(t,dur,vol,corte,alto){
   if(!ac||muted)return;
+  if(!poolReady)initPools();
+  if(!poolN.length)return;
   try{
-    if(vivos>44)return;
-    if(!ruidoBuf){var n=(ac.sampleRate*.3)|0;ruidoBuf=ac.createBuffer(1,n,ac.sampleRate);
-      var d=ruidoBuf.getChannelData(0);for(var i=0;i<n;i++)d[i]=Math.random()*2-1;}
-    var sc=ac.createBufferSource();sc.buffer=ruidoBuf;
-    var g=ac.createGain(),fl=ac.createBiquadFilter();
-    fl.type=alto?'highpass':'lowpass';fl.frequency.value=corte;
-    g.gain.setValueAtTime(.0001,t);
-    g.gain.linearRampToValueAtTime(vol,t+.006);
-    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
-    sc.connect(fl);fl.connect(g);g.connect(salida());
-    vivos++;sc.onended=function(){vivos--;try{sc.disconnect();fl.disconnect();g.disconnect();}catch(e){}};
-    sc.start(t);sc.stop(t+dur+.02);
+    var v=tomaVoz(poolN,t);
+    v.filter.type=alto?'highpass':'lowpass';
+    v.filter.frequency.setValueAtTime(corte,t);
+    v.gain.gain.cancelScheduledValues(t);
+    v.gain.gain.setValueAtTime(0.0001,t);
+    v.gain.gain.linearRampToValueAtTime(vol,t+.006);
+    v.gain.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    v.busy=t+dur;
   }catch(e){}
 }
 function fuelle(f,t,dur,vol){
-  if(!ac||muted||vivos>36)return;
+  if(!ac||muted)return;
+  if(!poolReady)initPools();
+  if(poolT.length<2)return;
   try{
-    var mez=ac.createGain();
-    mez.gain.setValueAtTime(0.0001,t);
-    mez.gain.linearRampToValueAtTime(vol,t+.03);
-    mez.gain.setValueAtTime(vol*.85,t+dur*.55);
-    mez.gain.exponentialRampToValueAtTime(.0001,t+dur+.06);
-    var filtro=ac.createBiquadFilter();
-    filtro.type='lowpass';filtro.frequency.setValueAtTime(Math.min(2400,f*2.2),t);filtro.Q.value=.5;
-    filtro.connect(mez);mez.connect(salida());
-    var voces=[[f,'sawtooth',.7],[f*1.005,'sawtooth',.5],[f*2,'sine',.14]];
-    for(var i=0;i<voces.length;i++){
-      var o=ac.createOscillator(),g=ac.createGain();
-      o.type=voces[i][1];o.frequency.setValueAtTime(voces[i][0],t);
-      g.gain.value=voces[i][2];
-      o.connect(g);g.connect(filtro);
-      vivos++;(function(oo,gg){oo.onended=function(){vivos--;try{oo.disconnect();gg.disconnect();}catch(e){}};})(o,g);
-      o.start(t);o.stop(t+dur+.08);
+    var partes=[[f,'sawtooth',1],[f*1.005,'sawtooth',.7],[f*2,'sine',.22]];
+    for(var i=0;i<partes.length;i++){
+      var v=tomaVoz(poolT,t);
+      v.osc.type=partes[i][1];
+      v.osc.frequency.setValueAtTime(partes[i][0],t);
+      var vv=vol*partes[i][2];
+      v.gain.gain.cancelScheduledValues(t);
+      v.gain.gain.setValueAtTime(0.0001,t);
+      v.gain.gain.linearRampToValueAtTime(vv,t+.03);
+      v.gain.gain.setValueAtTime(vv*.85,t+dur*.55);
+      v.gain.gain.exponentialRampToValueAtTime(.0001,t+dur+.06);
+      v.busy=t+dur+.06;
     }
   }catch(e){}
 }
 function bocina(f,t,dur,vol){
+
   if(!ac||muted)return;
   try{
     var mezcla=ac.createGain();
