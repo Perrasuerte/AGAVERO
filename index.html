@@ -115,7 +115,7 @@ var PAL={
 var C=PAL.jima;
 
 /* ---------- audio ---------- */
-var VERSION='v17';
+var VERSION='v18';
 var ac=null,muted=false,notasSonadas=0;
 var master=null,desbloqueado=0,mudoHTML=null,despertando=0;
 function ensureAudio(){
@@ -1037,7 +1037,7 @@ var VALV={x:60,y:64},BELT={x:112,y:96};
 var DRUM=[{x:30,y:92,n:'PUNTAS'},{x:58,y:92,n:'CORAZON'},{x:86,y:92,n:'COLAS'}];
 function startTaberna(){
   C=PAL.taberna;
-  var R=rendimiento(),ini=.18+(1-R.cocc)*.05,anc=.45+R.cocc*.20;
+  var R=rendimiento(),ini=.06+(1-R.cocc)*.04,anc=.55+R.cocc*.15;
   still={total:mostoVol,prod:0,sel:0,dry:0,ph:0,cocc:R.cocc,
     hs:ini,he:ini+anc,mezcla:0,
     d:[{c:[0,0,0]},{c:[0,0,0]},{c:[0,0,0]}],
