@@ -115,7 +115,7 @@ var PAL={
 var C=PAL.jima;
 
 /* ---------- audio ---------- */
-var VERSION='v19';
+var VERSION='v22';
 var ac=null,muted=false,notasSonadas=0;
 var master=null,desbloqueado=0,mudoHTML=null,despertando=0;
 function ensureAudio(){
@@ -629,7 +629,7 @@ var P_TAB=[
   'CANTIDAD Y CALIDAD, LAS DOS.','',
   'PRIMERO CORTAS EN LA VALVULA,','LUEGO SIRVES Y SELLAS EN OTRO','LUGAR: SON DOS PASOS, DOS','LUGARES.']},
  {art:2,l:['EN EL ALAMBIQUE EL MAESTRO','SEPARA PUNTAS, CORAZON Y','COLAS. EL CORAZON MANDA,','PERO EL MAESTRO DECIDE CUANTO','DE CADA UNO LLEVA EL LOTE.']},
- {art:-1,t:'LA TABERNA',l:['1) LOS CORTES.','EL ALCOHOLIMETRO MARCA LOS','GRADOS Y BAJA RAPIDO: ARRIBA','DE 55 SON PUNTAS, DE 55 A 40','EL CORAZON, DE 40 PARA ABAJO','LAS COLAS.','','TOQUE EN LA VALVULA CAMBIA DE','TAMBO. EN CUANTO LLEGUEN LAS','COLAS LA VALVULA SE QUEDA','FIJA SOLA: YA NO HAY QUE','TOCARLA MAS.','','2) LA MEZCLA.','MANTEN EN UN TAMBO PARA CARGAR','LA JARRA Y EN LA BANDA PARA','SERVIR. TIENES 52 SEGUNDOS.','','UN POCO DE PUNTAS PERFUMA Y UN','POCO DE COLAS DA CUERPO. EL','EXCESO DE CUALQUIERA ARRUINA.','','CUANDO TERMINES DE SERVIR, VE','AL SELLO (NO A LA VALVULA) Y','TOCA PARA CERRAR EL LOTE.','','EL LOTE DEBE SALIR ENTRE 40 Y','48 GRADOS: LAS PUNTAS LO SUBEN','Y LAS COLAS LO BAJAN. LA ZONA','CLARA DEL MEDIDOR ES EL PUNTO','JUSTO.']}];
+ {art:-1,t:'LA TABERNA',l:['1) LOS CORTES.','EL ALCOHOLIMETRO MARCA LOS','GRADOS Y BAJA RAPIDO: ARRIBA','DE 55 SON PUNTAS, DE 55 A 40','EL CORAZON, DE 40 PARA ABAJO','LAS COLAS.','','TOQUE EN LA VALVULA CAMBIA DE','TAMBO. EN CUANTO LLEGUEN LAS','COLAS LA VALVULA SE QUEDA','FIJA SOLA: YA NO HAY QUE','TOCARLA MAS.','','2) LA MEZCLA.','ANTES VERAS UN RESUMEN DE TUS','CORTES. LUEGO, MANTEN EN UN','TAMBO PARA CARGAR LA JARRA Y','EN LA BANDA PARA SERVIR.','','UN POCO DE PUNTAS PERFUMA Y UN','POCO DE COLAS DA CUERPO. EL','EXCESO DE CUALQUIERA ARRUINA.','','CUANDO TERMINES DE SERVIR, VE','A TERMINAR (NO A LA VALVULA) Y','TOCA PARA CERRAR EL LOTE.','','EL LOTE DEBE SALIR ENTRE 40 Y','48 GRADOS: LAS PUNTAS LO SUBEN','Y LAS COLAS LO BAJAN. LA ZONA','CLARA DEL MEDIDOR ES EL PUNTO','JUSTO.']}];
 
 /* ---------- ETAPA 1 ---------- */
 function startJima(){
@@ -1034,7 +1034,7 @@ function drawFermento(){
   hudBar('TINAS '+(tinas.length-ab)+'/'+tinas.length,1-ab/tinas.length,'CONTAM '+contam);
 }
 /* ---------- ETAPA 4: LA TABERNA ---------- */
-var VALV={x:60,y:64},BELT={x:112,y:96},CIERRE={x:38,y:126};
+var VALV={x:60,y:64},BELT={x:112,y:96},CIERRE={x:130,y:138},JARCAP=5;
 var DRUM=[{x:30,y:92,n:'PUNTAS'},{x:58,y:92,n:'CORAZON'},{x:86,y:92,n:'COLAS'}];
 function startTaberna(){
   C=PAL.taberna;
@@ -1043,7 +1043,7 @@ function startTaberna(){
     hs:ini,he:ini+anc,mezcla:0,
     d:[{c:[0,0,0]},{c:[0,0,0]},{c:[0,0,0]}],
     jar:[0,0,0],srv:[0,0,0],
-    bottles:[],spawnT:1.2,full:0,perd:0,merma:0,mezT:0,aviso:0};
+    bottles:[],spawnT:1.2,full:0,perd:0,merma:0,cierra:0,dispIni:0,avisoLiq:0};
   player=newPlayer(84,132);parts=[];run=0;stage='taberna';
   say('MANDA CADA COSA A SU TAMBO');
 }
@@ -1086,7 +1086,7 @@ function updTaberna(dt){
   if(!still.mezcla){
     var flow=.95*dt;
     if(still.prod+flow>=still.total){flow=Math.max(0,still.total-still.prod);
-      still.dry=1;still.mezcla=1;still.mezT=52;still.cierra=6;SFX.dry();say('LLENA TU JARRA Y SIRVE',1,2.4);}
+      still.dry=1;SFX.dry();stage='r5';SFX.stage();}
     still.prod+=flow;
     var f=fase();
     if(f!==still.ph){still.ph=f;}
@@ -1098,14 +1098,13 @@ function updTaberna(dt){
     edge=0;return;
   }
 
-  still.mezT-=dt;still.cierra=Math.max(0,still.cierra-dt);
-  if(!still.aviso&&still.mezT<10){still.aviso=1;say('YA CIERRA LA TABERNA',1);SFX.pass();}
-  if(still.mezT<=0){finish();return;}
-  var prog=Math.min(1,run/90),bs=10+prog*6;
+  var prog=Math.min(1,run/130),bs=9+prog*4;
   still.spawnT-=dt;
   var disp=drumV(0)+drumV(1)+drumV(2)+jarV();
+  still.dispNow=disp;
+  if(!still.avisoLiq&&disp<1.2&&disp>0){still.avisoLiq=1;say('SE ACABA EL LIQUIDO',1);}
   if(still.spawnT<=0&&disp>.9&&still.bottles.length<6){
-    still.bottles.push({y:36,fill:0,c:[0,0,0]});still.spawnT=Math.max(1.4,2.4-prog*1.1);}
+    still.bottles.push({y:36,fill:0,c:[0,0,0]});still.spawnT=Math.max(1.6,2.6-prog*1.0);}
   for(var i=still.bottles.length-1;i>=0;i--){var b=still.bottles[i];b.y+=bs*dt;
     if(b.y>146){
       if(b.fill>=.92){still.full++;SFX.done();fx(116,144,5,C.hot,20);}
@@ -1114,8 +1113,8 @@ function updTaberna(dt){
 
   if(st&&st.charAt(0)==='t'&&keys.atk){
     var k=parseInt(st.charAt(1),10),dv=drumV(k);
-    if(dv>.01&&jarV()<3){
-      var q=Math.min(3.6*dt,dv,3-jarV());
+    if(dv>.01&&jarV()<JARCAP){
+      var q=Math.min(3.6*dt,dv,JARCAP-jarV());
       for(var c=0;c<3;c++){var part=still.d[k].c[c]/dv*q;still.d[k].c[c]-=part;still.jar[c]+=part;}
       if(Math.floor(run*12)%2===0)SFX.pour();}
   }
@@ -1126,7 +1125,7 @@ function updTaberna(dt){
       if(ab.fill>1.0)still.merma+=pp;else{ab.c[c2]+=pp;still.srv[c2]+=pp;}}
     ab.fill+=q2;
     if(Math.floor(run*14)%2===0)SFX.pour();}
-  if(edge&&st==='cerrar'){ if(still.cierra<=0)finish(); else say('AUN NO, MAESTRO',1); }
+  if(edge&&st==='cerrar')finish();
   if(disp<.9&&still.bottles.length===0)finish();
   edge=0;
 }
@@ -1293,9 +1292,10 @@ function drawPina(x,y,r,pal){
 function drawAlambique(){
   ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(30,66,16,4,0,0,Math.PI*2);ctx.fill();
   ctx.fillStyle=C.w2;ctx.fillRect(16,58,28,8);
-  ctx.fillStyle=C.a2;ctx.beginPath();ctx.arc(30,50,14,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=C.a1;ctx.beginPath();ctx.arc(30,50,12,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle=C.a3;ctx.beginPath();ctx.arc(25,45,4,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=C.a2;ctx.beginPath();ctx.ellipse(30,61,14,4,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=C.a2;ctx.fillRect(16,39,28,22);
+  ctx.fillStyle=C.a1;ctx.beginPath();ctx.ellipse(30,39,14,4,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle=C.a3;ctx.beginPath();ctx.ellipse(24,50,2.5,9,0,0,Math.PI*2);ctx.fill();
   ctx.fillStyle=C.a2;ctx.beginPath();ctx.moveTo(21,38);ctx.lineTo(39,38);ctx.lineTo(34,26);ctx.lineTo(26,26);ctx.closePath();ctx.fill();
   ctx.fillStyle=C.a1;ctx.beginPath();ctx.moveTo(23,37);ctx.lineTo(31,37);ctx.lineTo(29,28);ctx.lineTo(26,28);ctx.closePath();ctx.fill();
   ctx.fillStyle=C.w2;ctx.fillRect(26,23,8,4);
@@ -1444,28 +1444,27 @@ function drawTaberna(){
     if(l2>0){ctx.fillStyle=b.fill>1.0?'#ffffff':'#f2e3a6';ctx.fillRect(bx+2,by+4-l2,5,l2);}
     ctx.fillStyle='#b9c0b2';ctx.fillRect(bx,by-6,9,1);});
   if(still.mezcla){
-    var listo=still.cierra<=0;
     ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y+10,14,3,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=C.w2;ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y,14,10,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=listo?C.hot:'#6b5c46';
+    ctx.fillStyle=C.hot;
     ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y,10,6,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=listo?'#2b1d16':'#3b332c';ctx.font='bold 6px monospace';
+    ctx.fillStyle='#2b1d16';ctx.font='bold 6px monospace';
     ctx.textAlign='center';ctx.textBaseline='top';
-    ctx.fillText(listo?'SELLAR':Math.ceil(still.cierra)+'S',CIERRE.x,CIERRE.y-3);
+    ctx.fillText('TERMINAR',CIERRE.x,CIERRE.y-3);
     ctx.textAlign='left';
-    if(listo&&Math.floor(run*3)%2===0){ctx.strokeStyle=C.hot;ctx.lineWidth=1;
+    if(Math.floor(run*3)%2===0){ctx.strokeStyle=C.hot;ctx.lineWidth=1;
       ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y,14,10,0,0,Math.PI*2);ctx.stroke();}
   }
   drawMaestro(player.x,player.y,player.f);
   var jv=jarV();
-  if(jv>0){var h=Math.round(jv/3*7);
+  if(jv>0){var h=Math.round(jv/JARCAP*7);
     ctx.fillStyle=C.w2;ctx.fillRect(px(player.x)+6,px(player.y)-5,6,10);
     ctx.fillStyle=still.jar[1]/jv>.75?'#f2e3a6':(still.jar[0]/jv>.4?'#f6f1d8':'#c9a06a');
     ctx.fillRect(px(player.x)+7,px(player.y)+4-h,4,h);}
   var st=estacion();
   var lab=st==='valvula'?'TOQUE: CAMBIAR DE TAMBO':
     (st==='banda'?'MANTEN: SERVIR LA BOTELLA':
-    (st==='cerrar'?(still.cierra>0?('SELLA EN '+Math.ceil(still.cierra)+'S'):'TOQUE: SELLAR EL LOTE'):
+    (st==='cerrar'?'TOQUE: TERMINAR EL LOTE':
     (st?'MANTEN: LLENAR LA JARRA':
     (still.mezcla?'VE A UN TAMBO O A LA BANDA':'PARATE EN LA VALVULA'))));
   ctx.fillStyle=C.ink;ctx.fillRect(4,134,98,15);
@@ -1517,7 +1516,7 @@ function drawTaberna(){
   ctx.textAlign='left';
 
   if(!still.mezcla)hudBar('CORRIDA',1-still.prod/still.total,'CORTES');
-  else hudBar('BOT '+still.full,clamp(still.mezT/52,0,1),(still.mezT<10&&Math.floor(run*4)%2===0?'':'QUEDAN '+Math.max(0,Math.ceil(still.mezT))+'S'));
+  else hudBar('BOT '+still.full,clamp((still.dispNow||0)/(still.dispIni||1),0,1),'POR SERVIR');
 }
 function iconoAyuda(){
   ctx.fillStyle='#3b2a1e';ctx.beginPath();ctx.arc(151,8,7,0,Math.PI*2);ctx.fill();
@@ -2058,7 +2057,7 @@ function draw(){
       ctx.fillStyle=p.c;ctx.fillText(p.txt,px(p.x),px(p.y));ctx.textAlign='left';}
     else{ctx.fillStyle=p.c;ctx.fillRect(px(p.x),px(p.y),p.s,p.s);}});
   ctx.restore();
-  if(msgT>0&&stage!=='r1'&&stage!=='r2'&&stage!=='r3'&&stage!=='r4'){
+  if(msgT>0&&stage!=='r1'&&stage!=='r2'&&stage!=='r3'&&stage!=='r4'&&stage!=='r5'){
     ctx.textAlign='center';ctx.textBaseline='top';ctx.font='bold 9px monospace';
     var my=stage==='taberna'?33:19;
     ctx.fillStyle=C.ink;ctx.fillRect(18,my,124,12);
@@ -2074,6 +2073,9 @@ function draw(){
     golpes===0?'¡SIN UN SOLO GOLPE!':('GOLPES '+golpes),'MANOS: AL HORNO');
   if(stage==='r3')panel('LAS TINAS',tinas.length+' TINAS   MOSTO '+Math.round(mostoQ*100)+'%',
     avinagrado?'SE AVINAGRO UNA TINA':('CONTAMINACIONES '+contam),'ALCANZA PARA ~'+Math.round(mostoVol*.55)+' BOTELLAS');
+  if(stage==='r5')panel('LOS CORTES',
+    'PUNTAS '+drumV(0).toFixed(1)+'   CORAZON '+drumV(1).toFixed(1),
+    'COLAS '+drumV(2).toFixed(1),'MANOS: A EMBOTELLAR');
 }
 /* ---------- bucle ---------- */
 var last=performance.now();
@@ -2127,6 +2129,8 @@ function frame(now){
       else if(stage==='r4'){goPages(lot===1?P_HORNO:[P_HORNO[2]],startHorno,'horno');}
       else if(stage==='r2'){goPages(lot===1?P_FER:[P_FER[2]],startFermento,'fermento');}
       else if(stage==='r3'){goPages(lot===1?P_TAB:[P_TAB[1]],startTaberna,'taberna');}
+      else if(stage==='r5'){still.mezcla=1;still.dispIni=drumV(0)+drumV(1)+drumV(2);
+        stage='taberna';say('LLENA TU JARRA Y SIRVE',1,2.4);}
       else if(stage==='label'){ if(lockT<=0){saludT=0;stage='salud';SFX.label();}}
       else if(stage==='salud'){ if(saludT>2.8){
           if(esTop()){tabla.push({n:maestro||'MAESTRO',s:result.score});
