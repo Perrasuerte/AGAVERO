@@ -69,7 +69,7 @@
 <div id="shell"><canvas id="c" width="160" height="160"></canvas></div>
 <input id="nom" maxlength="12" placeholder="TU NOMBRE" autocomplete="off" spellcheck="false">
 <button id="dl">COMPARTE MI ETIQUETA</button>
-<button id="snd">PROBAR SONIDO</button>
+<button id="snd">SONIDO</button>
 <div id="pad">
   <div id="dpad">
     <div class="cel"></div><div class="cel ar">▲</div><div class="cel"></div>
@@ -115,7 +115,7 @@ var PAL={
 var C=PAL.jima;
 
 /* ---------- audio ---------- */
-var VERSION='v22';
+var VERSION='v24';
 var ac=null,muted=false,notasSonadas=0;
 var master=null,desbloqueado=0,mudoHTML=null,despertando=0;
 function ensureAudio(){
@@ -443,7 +443,7 @@ window.addEventListener('keydown',function(e){
   }
   var k=MAP[e.key];
   if(k){press(k);e.preventDefault();}
-  if(e.key==='r'||e.key==='R'){stage='intro';}
+  if(e.key==='r'||e.key==='R'){lot=1;stage='intro';}
   if(e.key==='m'||e.key==='M'){muted=!muted;}
   if(e.key==='h'||e.key==='H'||e.key==='?')abrirAyuda();
   if((e.key==='n'||e.key==='N')&&stage==='intro'){pedirNombre();}});
@@ -1034,7 +1034,7 @@ function drawFermento(){
   hudBar('TINAS '+(tinas.length-ab)+'/'+tinas.length,1-ab/tinas.length,'CONTAM '+contam);
 }
 /* ---------- ETAPA 4: LA TABERNA ---------- */
-var VALV={x:60,y:64},BELT={x:112,y:96},CIERRE={x:130,y:138},JARCAP=5;
+var VALV={x:60,y:64},BELT={x:112,y:96},CIERRE={x:130,y:133},JARCAP=5;
 var DRUM=[{x:30,y:92,n:'PUNTAS'},{x:58,y:92,n:'CORAZON'},{x:86,y:92,n:'COLAS'}];
 function startTaberna(){
   C=PAL.taberna;
@@ -1071,7 +1071,7 @@ function estacion(){
   var db=hyp(player.x-BELT.x,player.y-BELT.y);
   if(db<22&&db<bd){bd=db;best='banda';}
   var dc=hyp(player.x-CIERRE.x,player.y-CIERRE.y);
-  if(dc<20&&dc<bd){bd=dc;best='cerrar';}
+  if(dc<16&&dc<bd){bd=dc;best='cerrar';}
   return best;
 }
 function botellaActiva(){
@@ -1444,16 +1444,16 @@ function drawTaberna(){
     if(l2>0){ctx.fillStyle=b.fill>1.0?'#ffffff':'#f2e3a6';ctx.fillRect(bx+2,by+4-l2,5,l2);}
     ctx.fillStyle='#b9c0b2';ctx.fillRect(bx,by-6,9,1);});
   if(still.mezcla){
-    ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y+10,14,3,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle=C.w2;ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y,14,10,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(0,0,0,.2)';ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y+13,18,3,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle=C.w2;ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y,18,13,0,0,Math.PI*2);ctx.fill();
     ctx.fillStyle=C.hot;
-    ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y,10,6,0,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle='#2b1d16';ctx.font='bold 6px monospace';
-    ctx.textAlign='center';ctx.textBaseline='top';
-    ctx.fillText('TERMINAR',CIERRE.x,CIERRE.y-3);
-    ctx.textAlign='left';
+    ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y,15,10,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#2b1d16';ctx.font='bold 5px monospace';
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('TERMINAR',CIERRE.x,CIERRE.y+1);
+    ctx.textAlign='left';ctx.textBaseline='top';
     if(Math.floor(run*3)%2===0){ctx.strokeStyle=C.hot;ctx.lineWidth=1;
-      ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y,14,10,0,0,Math.PI*2);ctx.stroke();}
+      ctx.beginPath();ctx.ellipse(CIERRE.x,CIERRE.y,18,13,0,0,Math.PI*2);ctx.stroke();}
   }
   drawMaestro(player.x,player.y,player.f);
   var jv=jarV();
@@ -2026,14 +2026,11 @@ function exportarEtiqueta(){
   }catch(e){}
 }
 if(dlBtn)dlBtn.addEventListener('click',function(){despierta();exportarEtiqueta();});
-var sndBtn=document.getElementById('snd');
+var sndBtn=document.getElementById('snd'),sndCache=null;
 if(sndBtn)sndBtn.addEventListener('click',function(){
-  muted=false;despierta();
-  if(!ac)return;
-  var t0=ac.currentTime+.05;
-  note(523,t0,.28,'square',.20);
-  note(659,t0+.3,.28,'square',.20);
-  note(784,t0+.6,.45,'square',.22);
+  despierta();
+  muted=!muted;
+  if(!muted&&ac){var t0=ac.currentTime+.03;note(659,t0,.14,'square',.16);}
 });
 function draw(){
   if(stage==='salud'){drawSalud();return;}
@@ -2146,6 +2143,7 @@ function frame(now){
   if(dlBtn&&quiere!==dlVis){dlVis=quiere;dlBtn.style.display=quiere?'block':'none';}
   var qn=(stage==='nombre')?1:0;
   if(nomBox&&qn!==nomVis){nomVis=qn;nomBox.style.display=qn?'block':'none';}
+  if(sndBtn&&muted!==sndCache){sndCache=muted;sndBtn.textContent=muted?'ACTIVAR SONIDO':'DESACTIVAR SONIDO';}
   for(var j=parts.length-1;j>=0;j--){var p=parts[j];
     p.x+=p.vx*dt;p.y+=p.vy*dt;if(!p.txt){p.vx*=.92;p.vy*=.92;}p.l-=dt;if(p.l<=0)parts.splice(j,1);}
   draw();
